@@ -1,4 +1,7 @@
 # xvps
+
+### Under development .. don't using it
+
 Bash Script for manage Nginx V Apache webserver in Ubuntu System
 I'm bored with repetitive tasks, so it can setup nginx reverse proxy for apache, create virtualhost, install wordpress with wp-cli, create database, etc.
 I'm followed this guide
