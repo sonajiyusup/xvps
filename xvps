@@ -2,11 +2,9 @@
 # ============== INFO SCRIPT =============
 version="1.0.0"
 changelog="Fixing some bug"
-#urlscript="https://raw.githubusercontent.com/idL3akZ/mvps/master/mvps"
-#ver=$(wget -qO- --no-check-certificate $urlscript | sed '3!d' | awk -F'"' '$0=$2')
-#vlog=$(wget -qO- --no-check-certificate $urlscript | sed '4!d' | awk -F'"' '$0=$2')
-ver="1.0.0"
-vlog="Fixing some bug"
+urlscript="https://raw.githubusercontent.com/sonajiyusup/xvps/master/xvps"
+ver=$(wget -qO- --no-check-certificate $urlscript | sed '3!d' | awk -F'"' '$0=$2')
+vlog=$(wget -qO- --no-check-certificate $urlscript | sed '4!d' | awk -F'"' '$0=$2')
 IPADDRESS=$(hostname -i)
 PRENAME=xvps_
 # ========================================
@@ -18,10 +16,11 @@ checkUpdate(){
 	echo -n -e "Do you want to update Script to \e[30;48;5;82m xVPS v.$ver \e[0m ? [y or n] : "
 	read update
 	if [ $update == 'y' ]; then
-		#[ -f /usr/local/bin/mvps ] && rm -rf /usr/local/bin/mvps
-		#wget --no-check-certificate -O /usr/local/bin/xvps $urlscript && chmod +x /usr/local/bin/xvps
+		[ -f /usr/local/bin/xvps ] && rm -rf /usr/local/bin/xvps
+		wget --no-check-certificate -O /usr/local/bin/xvps $urlscript && chmod +x /usr/local/bin/xvps
 		echo -e "\e[30;48;5;82m Info \e[0m Update Success, re-run xVPS ..."
 		sleep 3s
+		xvps
 	fi
 }
 
