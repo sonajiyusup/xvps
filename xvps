@@ -26,41 +26,56 @@ checkUpdate(){
 
 headerScreen(){
 	clear
-	echo -e "\e[40;38;5;82m.::::::::::::::::::-------- \e[30;48;5;82m xVPS v.$version \e[0m \e[40;38;5;82m-------:::::::::::::::::.\e[0m"
+	echo -e "\e[40;38;5;82m.:::::::::::::::::-------- \e[30;48;5;82m xVPS v.$version \e[0m \e[40;38;5;82m-------:::::::::::::::::.\e[0m"
 	echo -e "\e[40;38;5;82m------------------------------------------------------------------\e[0m"
 	echo -e "\e[40;38;5;82mBash Script for manage Nginx V Apache webserver in Ubuntu System\e[0m"
 	echo -e "\e[40;38;5;82m======================= T A S K - L I S T ========================\e[0m"
-	[ ! -d /etc/xvps ] && mkdir /etc/xvps
 }
 
 createVhost(){
 	read -p "Input hostname ( Without http[s]:// ) : " DOMAIN
 	WEBDIR=/var/www/$DOMAIN
-	sudo mkdir $WEBDIR && chown www-data:www-data $WEBDIR
-	if [ -d $WEBDIR ]; then
-		echo -e "\e[40;38;5;82m Success \e[0m created directory in $WEBDIR"
-	fi
-	echo -e '#'"$PRENAME$DOMAIN"'\nserver {\n\tlisten 80;\n\tserver_name '"$DOMAIN"';\n\troot /var/www/'"$DOMAIN"';\n\tindex index.php index.htm index.html;\n\n\tlocation / {\n\t try_files $uri $uri/ /index.php;\n\t}\n\n\tlocation ~ \.php$ {\n\t\tproxy_pass http://'"$IPADDRESS"':8080$request_uri;\n\t\tproxy_set_header Host $host;\n\t\tproxy_set_header X-Real-IP $remote_addr;\n\t\tproxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;\n\t\tproxy_set_header X-Forwarded-Proto $scheme;\n\t}\n\n\tlocation ~ /\. {\n\t deny all;\n\t}\n}\n\n' >> /etc/nginx/sites-available/apache
-	sudo ln -s /etc/nginx/sites-available/apache /etc/nginx/sites-enabled/apache
-	sudo service nginx reload
-	echo -e '<VirtualHost *:8080>\n\tServerName '"$DOMAIN"'\n\tServerAlias '"$DOMAIN"'\n\tDocumentRoot /var/www/'"$DOMAIN"'\n\t<Directory "/var/www/'"$DOMAIN"'">\n\t\tAllowOverride All\n\t</Directory>\n</VirtualHost>\n' > /etc/apache2/sites-available/$DOMAIN.conf
-	sudo a2ensite $DOMAIN
-	sudo service apache2 restart
+	if [ ! -f /etc/apache2/sites-available/$DOMAIN.conf ]; then
+		sudo mkdir $WEBDIR && chown www-data:www-data $WEBDIR
+		if [ -d $WEBDIR ]; then
+			echo -e "\e[40;38;5;82m Success \e[0m created directory in $WEBDIR"
+		fi
+		echo -e '#'"$PRENAME$DOMAIN"'\nserver {\n\tlisten 80;\n\tserver_name '"$DOMAIN"';\n\troot /var/www/'"$DOMAIN"';\n\tindex index.php index.htm index.html;\n\n\tlocation / {\n\t try_files $uri $uri/ /index.php;\n\t}\n\n\tlocation ~ \.php$ {\n\t\tproxy_pass http://'"$IPADDRESS"':8080$request_uri;\n\t\tproxy_set_header Host $host;\n\t\tproxy_set_header X-Real-IP $remote_addr;\n\t\tproxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;\n\t\tproxy_set_header X-Forwarded-Proto $scheme;\n\t}\n\n\tlocation ~ /\. {\n\t deny all;\n\t}\n}\n\n' >> /etc/nginx/sites-available/apache
+		sudo ln -s /etc/nginx/sites-available/apache /etc/nginx/sites-enabled/apache
+		sudo service nginx reload
+		echo -e '<VirtualHost *:8080>\n\tServerName '"$DOMAIN"'\n\tServerAlias '"$DOMAIN"'\n\tDocumentRoot /var/www/'"$DOMAIN"'\n\t<Directory "/var/www/'"$DOMAIN"'">\n\t\tAllowOverride All\n\t</Directory>\n</VirtualHost>\n' > /etc/apache2/sites-available/$DOMAIN.conf
+		sudo a2ensite $DOMAIN
+		sudo service apache2 restart
+		return 0
+	else
+		return 1
+	fi	
 }
 
 deleteVhost(){
-	$DOMAIN=$1
+	DOMAIN=$1
 	firstLine=$(grep -n "#$PRENAME$DOMAIN" /etc/nginx/sites-available/apache | awk -F':' '$0=$1')
 	endLine=$(expr $firstLine + 24)
 	sudo sed -i "$firstLine","$endLine"d /etc/nginx/sites-available/apache
-	echo $firstLine$endLine
 	sudo a2dissite $DOMAIN
 	sudo rm /etc/apache2/sites-available/$DOMAIN.conf
 	sudo rm -rf /var/www/$DOMAIN
 }
 
 deleteDatabase(){
-	mysql -uroot -p${rootpasswd} -e "CREATE DATABASE ${MAINDB} /*\!40100 DEFAULT CHARACTER SET utf8 */;"
+	MAINDB=$1
+	# If /etc/xvps/mysql-auth.cnf exists then it won't ask for root password
+	if [ -f /etc/xvps/mysql-auth.cnf ]; then
+		auth="--defaults-file=/etc/xvps/mysql-auth.cnf"
+		mysql $auth -e "DROP DATABASE ${MAINDB};"
+		mysql $auth -e "DROP USER '${MAINDB}'@'localhost';"
+	# If /etc/xvps/mysql-auth.cnf doesn't exist then it'll ask for root password   
+	else
+		read -s -p "Please enter root user MySQL password! : " rootpasswd
+		echo ""
+		mysql -uroot -p${rootpasswd} -e "DROP DATABASE ${MAINDB};"
+		mysql -uroot -p${rootpasswd} -e "DROP USER '${MAINDB}'@'localhost';"
+	fi
 }
 
 createDatabase(){
@@ -70,14 +85,14 @@ createDatabase(){
 		cut=$(expr $size - 16)
 		MAINDB=${MAINDB::-$cut}
 	fi
-	# If /etc/xvps/config.cnf exists then it won't ask for root password
-	if [ -f /etc/xvps/config.cnf ]; then
-		auth="--defaults-file=/etc/xvps/config.cnf"
+	# If /etc/xvps/mysql-auth.cnf exists then it won't ask for root password
+	if [ -f /etc/xvps/mysql-auth.cnf ]; then
+		auth="--defaults-file=/etc/xvps/mysql-auth.cnf"
 		mysql $auth -e "CREATE DATABASE ${MAINDB} /*\!40100 DEFAULT CHARACTER SET utf8 */;"
 		mysql $auth -e "CREATE USER ${MAINDB}@localhost IDENTIFIED BY '${PASSWDDB}';"
 		mysql $auth -e "GRANT ALL PRIVILEGES ON ${MAINDB}.* TO '${MAINDB}'@'localhost';"
 		mysql $auth -e "FLUSH PRIVILEGES;"
-	# If /etc/xvps/config.cnf doesn't exist then it'll ask for root password   
+	# If /etc/xvps/mysql-auth.cnf doesn't exist then it'll ask for root password   
 	else
 		read -s -p "Please enter root user MySQL password! : " rootpasswd
 		echo ""
@@ -116,60 +131,140 @@ while(true)
 	echo "6. Delete Wordpress Installation (Including vhost and Database)"
 	echo "7. Delete Virtual Host"
 	echo "8. Delete Database"
-	echo -e "\e[40;38;5;82m--------------------------- CONFIG.CNF ---------------------------\e[0m"
-	echo "9. Change Default Wordpress User Account"
 	echo "=================================================================="
-	echo -e -n "\e[40;38;5;82m Input \e[0m Your Choice ? [1-10] : "
+	echo -e -n "\e[40;38;5;82m Input \e[0m Your Choice ? [1-8] or [q]uit : "
 	read task
 	case $task in
 		1 ) headerScreen
 			echo -e "\e[40;38;5;82m TASK \e[0m Fresh Setup (Nginx v Apache, MySQL, WP-CLI, etc)"
 			echo "------------------------------------------------------------------"
-			echo "Setup ..............."
-			#install git
+			echo -e "\e[40;38;5;82m TASK \e[0m Starting ..."
+			sleep 3s
+			[ ! -d /etc/xvps ] && mkdir /etc/xvps
+			apt-get update && apt-get install sudo
+			sudo echo -e "deb http://mirrors.digitalocean.com/ubuntu trusty-updates multiverse\ndeb http://mirrors.digitalocean.com/ubuntu trusty multiverse" >> /etc/apt/sources.list
+			sudo apt-get update && apt-get upgrade -y
+			tapache2=$(which apache2)
+			if [ $tapache2 != "" ]
+				then
+					echo -e "\e[40;38;5;82m TASK \e[0m Apache2 found, removing ..."
+					sleep 3s
+					sudo service apache2 stop
+					sudo apt-get purge apache2 apache2-utils apache2.2-bin -y
+					sudo apt-get autoremove -y
+					sudo rm -rf /etc/apache2
+			fi
+			echo -e "\e[40;38;5;82m TASK \e[0m Installing and Configuring Apache2 x PHP-FPM..."
+			sleep 3s
+			sudo apt-get install apache2 libapache2-mod-fastcgi php5-fpm php5-cli php5-mcrypt php5-curl nano php5-mysql fail2ban -y
+			sleep 3s
+			sudo sed -i 's/Listen 80/Listen 8080/g' /etc/apache2/ports.conf
+			sudo sed -i 's/VirtualHost \*:80/VirtualHost \*:8080/g' /etc/apache2/sites-available/000-default.conf
+			sudo service apache2 reload
+			sudo a2enmod actions
+			sudo a2enmod rewrite
+			sudo echo -e "AddType application/x-httpd-fastphp5 .php\nAction application/x-httpd-fastphp5 /php5-fcgi\nAlias /php5-fcgi /usr/lib/cgi-bin/php5-fcgi\nFastCgiExternalServer /usr/lib/cgi-bin/php5-fcgi -socket /var/run/php5-fpm.sock -pass-header Authorization\n<Directory /usr/lib/cgi-bin>\n\tRequire all granted\n</Directory>" >> /etc/apache2/mods-enabled/fastcgi.conf
+			sudo service apache2 restart
+			echo -e "\e[40;38;5;82m TASK \e[0m Installing and Configuring Nginx ..."
+			sleep 3s
+			sudo apt-get install nginx -y
+			sudo rm /etc/nginx/sites-enabled/default
+			sudo sed -i '11i\        client_max_body_size 100M;' /etc/nginx/nginx.conf
+			sudo service nginx restart
+			#change upload max size to 100M
+			sudo sed -i 's/upload_max_filesize = 2M/upload_max_filesize = 100M/g' /etc/php5/fpm/php.ini
+			sudo sed -i 's/post_max_size = 8M/post_max_size = 150M/g' /etc/php5/fpm/php.ini
+			sudo service php5-fpm restart
+			echo -e "\e[40;38;5;82m TASK \e[0m Installing and Configuring mod_rpaf ..."
+			sleep 3s
+			sudo apt-get install unzip build-essential apache2-threaded-dev -y
+			wget https://github.com/gnif/mod_rpaf/archive/stable.zip
+			unzip stable.zip
+			cd mod_rpaf-stable
+			sudo make
+			sudo make install
+			echo "LoadModule rpaf_module /usr/lib/apache2/modules/mod_rpaf.so" >> /etc/apache2/mods-available/rpaf.load
+			echo -e '<IfModule mod_rpaf.c>\n\tRPAF_Enable\tOn\n\tRPAF_Header\tX-Real-Ip\n\tRPAF_ProxyIPs\t'"$IPADDRESS"'\n\tRPAF_SetHostName\tOn\n\tRPAF_SetHTTPS\tOn\n\tRPAF_SetPort\tOn\n</IfModule>' > /etc/apache2/mods-available/rpaf.conf
+			sudo a2enmod rpaf
+			sudo service apache2 restart
+			echo -e "\e[40;38;5;82m TASK \e[0m Installing WP-CLI ..."
+			sleep 3s
+			wget --no-check-certificate https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar
+			chmod +x wp-cli.phar
+			sudo mv wp-cli.phar /usr/local/bin/wp
+			echo -e "\e[40;38;5;82m TASK \e[0m Installing MySQL server ..."
+			sleep 3s
+			sudo apt-get dist-upgrade -y
+			sudo apt-get install mysql-server -y
+			sudo mysql_install_db
+			echo -e "\e[40;38;5;82m TASK \e[0m Start Secure MySQL Configuration ..."
+			sleep 3s
+			sudo mysql_secure_installation
 			;;
 		2 ) headerScreen
 			echo -e "\e[40;38;5;82m TASK \e[0m Install Wordpress (Including vhost and Database)"
 			echo "------------------------------------------------------------------"
 			createVhost
-			RE_DOMAIN=$(sed 's/\./_/g;s|http://||g;s|https://||g;s|/||g' <<< $DOMAIN)
-			#create random password
-			PASSWDDB="$(openssl rand -base64 12)"
-			#set database name and database username
-			MAINDB=$PRENAME$(openssl rand -hex 2)$RE_DOMAIN
-			createDatabase
-			if [ -f /etc/xvps/config.cnf ]; then
-				echo -e "\e[40;38;5;82m Info \e[0m Default WP config found"
-				read -p "Wordpress - Title : " WPTITLE
-				sleep 3s
+			if [ $? -eq 0 ]; then
+				RE_DOMAIN=$(sed 's/\./_/g;s|http://||g;s|https://||g;s|/||g' <<< $DOMAIN)
+				#create random password
+				PASSWDDB="$(openssl rand -base64 12)"
+				#set database name and database username
+				MAINDB=$PRENAME$(openssl rand -hex 2)$RE_DOMAIN
+				createDatabase
+				if [ -f /etc/xvps/wp-config ]; then
+					echo -e "\e[40;38;5;82m Info \e[0m Default WP config found"
+					eval $(grep "^WPUSER=" /etc/xvps/wp-config)
+					eval $(grep "^WPEMAIL=" /etc/xvps/wp-config)
+					eval $(grep "^WPPASSWD=" /etc/xvps/wp-config)
+					read -p "Wordpress - Title : " WPTITLE
+					sleep 3s
+				else
+					echo -e "\e[40;38;5;82m Info \e[0m Default WP config not found"
+					sleep 3s
+					echo -e "\e[40;38;5;82m Input \e[0m Wordpress configuration"
+					sleep 3s
+					read -p "Wordpress - Title : " WPTITLE
+					read -p "Wordpress - E-mail : " WPEMAIL
+					read -p "Wordpress - User Login : " WPUSER
+					read -s -p "Wordpress - Password Login : " WPPASSWD
+					echo ""
+				fi
+				sudo -u www-data -s -- <<-EOF
+					wp --path=$WEBDIR core download
+					wp --path=$WEBDIR core config --dbname=$MAINDB --dbuser=$MAINDB --dbpass=$PASSWDDB
+					wp --path=$WEBDIR core install --url=$DOMAIN --title="$WPTITLE" --admin_user="$WPUSER" --admin_password="$WPPASSWD" --admin_email="$WPEMAIL"
+				EOF
+				if [ -f /etc/xvps/wp-custom ]; then
+					echo -e "\e[40;38;5;82m Info \e[0m Your WP-CUSTOM found, execute your custom setting ..."
+					export WEBDIR
+					sleep 3s
+					bash /etc/xvps/wp-custom
+				fi
+				echo $DOMAIN":"$MAINDB >> /etc/xvps/wpinstall.log
+				echo "------------------------------------------------------------------"
+				echo -e "\e[40;38;5;82m Info \e[0m Operation success, check : http://$DOMAIN"
 			else
-				echo -e "\e[40;38;5;82m Info \e[0m Default WP config not found"
-				sleep 3s
-				echo -e "\e[40;38;5;82m Input \e[0m Wordpress configuration"
-				sleep 3s
-				read -p "Wordpress - Title : " WPTITLE
-				read -p "Wordpress - E-mail : " WPEMAIL
-				read -p "Wordpress - User Login : " WPUSER
-				read -s -p "Wordpress - Password Login : " WPPASSWD
-				echo ""
+				echo -e "\e[40;38;5;82m Info \e[0m New Virtual Hosts was not created due to conflict, Please choose a different name and try again"
 			fi
-			sudo -u www-data -s -- <<-EOF
-				wp --path=$WEBDIR core download
-				wp --path=$WEBDIR core config --dbname=$MAINDB --dbuser=$MAINDB --dbpass=$PASSWDDB
-				wp --path=$WEBDIR core install --url=$DOMAIN --title="$WPTITLE" --admin_user=$WPUSER --admin_password=$WPPASSWD --admin_email=$WPEMAIL
-			EOF
-			echo $DOMAIN":"$MAINDB >> /etc/xvps/wpinstall.log
-			echo "------------------------------------------------------------------"
-			echo -e "\e[40;38;5;82m Info \e[0m Operation success, check : http://$DOMAIN"
 			;;
 		3 ) headerScreen
 			echo -e "\e[40;38;5;82m TASK \e[0m Create New Virtual Host"
 			echo "------------------------------------------------------------------"
 			createVhost
-			git clone https://github.com/sonajiyusup/ajax-file-upload.git .
-			echo $DOMAIN >> /etc/xvps/vhost.log
-			echo "------------------------------------------------------------------"
-			echo -e "\e[40;38;5;82m Info \e[0m Operation success, check : http://$DOMAIN"
+			if [ $? -eq 0 ]; then
+				wget -P $WEBDIR https://github.com/sonajiyusup/ajax-file-upload/archive/master.zip
+				unzip $WEBDIR/master.zip -d $WEBDIR
+				mv $WEBDIR/ajax-file-upload-master/* $WEBDIR
+				rm -rf $WEBDIR/ajax-file-upload-master/ $WEBDIR/master.zip
+				echo "rm -rf .git/ README.md assets/ index.html upload.php clean" > $WEBDIR/clean
+				chmod +x $WEBDIR/clean
+				echo $DOMAIN >> /etc/xvps/vhost.log
+				echo "------------------------------------------------------------------"
+				echo -e "\e[40;38;5;82m Info \e[0m Operation success, check : http://$DOMAIN"
+			else
+				echo -e "\e[40;38;5;82m Info \e[0m New Virtual Hosts was not created due to conflict, Please choose a different name and try again"
+			fi
 			;;
 		4 ) headerScreen
 			echo -e "\e[40;38;5;82m TASK \e[0m Create New Database"
@@ -191,38 +286,186 @@ while(true)
 		5 )	headerScreen
 			echo -e "\e[40;38;5;82m TASK \e[0m Virtual Host List"
 			echo "------------------------------------------------------------------"
+			echo ">>> VirtualHost with Wordpress Installation"
+			echo "------------------------------------------------------------------"
+			if [ -f /etc/xvps/wpinstall.log ]; then
+				checkFile=$(cat /etc/xvps/wpinstall.log)
+				if [ "$checkFile" != "" ]; then
+				    awk -F':' '$0=$1' /etc/xvps/wpinstall.log | nl -b a -s '. '
+				else
+					echo "VirtualHost with Wordpress Installation not found!"
+				fi
+			else
+				echo "VirtualHost with Wordpress Installation not found!"
+			fi
+			echo "------------------------------------------------------------------"
+			echo ">>> VirtualHost only"
+			echo "------------------------------------------------------------------"
+			if [ -f /etc/xvps/vhost.log ]; then
+				checkFile=$(cat /etc/xvps/vhost.log)
+				if [ "$checkFile" != "" ]; then
+					awk -F' ' '$0=$1' /etc/xvps/vhost.log | nl -b a -s '. '
+					echo "------------------------------------------------------------------"
+				else
+					echo "VirtualHost not found!"
+					echo "------------------------------------------------------------------"
+				fi
+			else
+				echo "VirtualHost not found!"
+				echo "------------------------------------------------------------------"
+			fi
 			;;
 		6 )	headerScreen
 			echo -e "\e[40;38;5;82m TASK \e[0m Delete Wordpress Installation (Including vhost and Database)"
 			echo "------------------------------------------------------------------"
+			if [ -f /etc/xvps/wpinstall.log ]; then	
+				checkFile=$(cat /etc/xvps/wpinstall.log)
+				if [ "$checkFile" != "" ]; then
+				    awk -F':' '$0=$1' /etc/xvps/wpinstall.log | nl -b a -s '. '
+					echo "------------------------------------------------------------------"
+					echo "For bulk delete, seperated number with comma (ex: 1,2,3..)"
+					echo "------------------------------------------------------------------"
+					echo -e -n "\e[40;38;5;82m INPUT \e[0m Number of domain you want to delete : "
+					read delNumber
+					read -p "Make sure the number is correct, continue ? [y]es or [n]o : " ans
+					if [ $ans == 'y' ]; then
+					    IFS=',' read -r -a array <<< "$delNumber"
+					    for key in "${array[@]}"
+					    do
+					        arrayDomain_[$key]=$(sed "$key"'!d' /etc/xvps/wpinstall.log | awk -F':' '$0=$1')
+					        if [ "${arrayDomain_[$key]}" != "" ]; then
+					        	echo -e "\e[30;48;5;82m xVPS \e[0m Deleting vHost ${arrayDomain_[$key]} ..."
+						        sleep 2s
+						        deleteVhost ${arrayDomain_[$key]}
+					        else
+					        	echo -e "\e[40;38;5;82m INFO \e[0m No VirtualHost selected, aborting ... "
+					        fi
+					        arrayDatabase_[$key]=$(sed "$key"'!d' /etc/xvps/wpinstall.log | awk -F':' '$0=$2')
+						    if [ "${arrayDatabase_[$key]}" != "" ]; then    
+						        echo -e "\e[30;48;5;82m xVPS \e[0m Deleting Database ${arrayDatabase_[$key]} ..."
+						        sleep 2s
+						        deleteDatabase ${arrayDatabase_[$key]}
+					        else
+					        	echo -e "\e[40;38;5;82m INFO \e[0m No Database selected, aborting ... "
+					        fi
+					    done
+					    sudo service apache2 restart
+						sudo service nginx reload
+					    #Delete vhost in log file
+					    IFS=',' read -r -a array <<< "$delNumber"
+					    for key in "${array[@]}"
+					    do
+					    	if [ "${arrayDomain_[$key]}" != "" ]; then
+					        	sed -i "/${arrayDomain_[$key]}/d" /etc/xvps/wpinstall.log
+					        fi
+					    done
+					else
+					    echo -e -n "\e[40;38;5;82m INFO \e[0m Aborting ... "
+					fi
+				else
+				    echo "Wordpress Installation Not found!"
+				    echo "------------------------------------------------------------------"
+				fi
+			else
+				echo "Wordpress Installation Not found!"
+			    echo "------------------------------------------------------------------"
+			fi
 			;;
 		7 )	headerScreen
 			echo -e "\e[40;38;5;82m TASK \e[0m Delete Virtual Host"
 			echo "------------------------------------------------------------------"
-			awk -F':' '$0=$1' /etc/xvps/domain.log | nl -b a -s '. '
-			echo "------------------------------------------------------------------"
-			echo "For bulk delete, seperated number with comma (ex: 1,2,3..)"
-			echo "------------------------------------------------------------------"
-			echo -e -n "\e[40;38;5;82m INPUT \e[0m Number of domain you want to delete : "
-			read delNumber
-			read -p "Make sure the number is correct, continue ? [y]es or [n]o : " ans
-			if [ $ans == 'y' ]; then
-			    IFS=',' read -r -a array <<< "$delNumber"
-			    for key in "${array[@]}"
-			    do
-			        arrayDomain_[$key]=$(sed "$key"'!d' domain.log | awk -F':' '$0=$1')
-			        arrayDatabase_[$key]=$(sed "$key"'!d' domain.log | awk -F':' '$0=$2')
-			        echo -e "\e[30;48;5;82m xVPS \e[0m Deleting vHost ${arrayDomain_[$key]} ..."
-			        sleep 2s
-			        deleteVhost $arrayDomain_[$key]
-			        echo -e "\e[30;48;5;82m xVPS \e[0m Deleting Database ${arrayDatabase_[$key]} ..."
-			        sleep 2s
-			    done
+			if [ -f /etc/xvps/vhost.log ]; then
+				checkFile=$(cat /etc/xvps/vhost.log)
+				if [ "$checkFile" != "" ]; then
+					awk -F' ' '$0=$1' /etc/xvps/vhost.log | nl -b a -s '. '
+					echo "------------------------------------------------------------------"
+					echo "For bulk delete, seperated number with comma (ex: 1,2,3..)"
+					echo "------------------------------------------------------------------"
+					echo -e -n "\e[40;38;5;82m INPUT \e[0m Number of domain you want to delete : "
+					read delNumber
+					read -p "Make sure the number is correct, continue ? [y]es or [n]o : " ans
+					if [ $ans == 'y' ]; then
+					    IFS=',' read -r -a array <<< "$delNumber"
+					    for key in "${array[@]}"
+					    do
+					        arrayDomain_[$key]=$(sed "$key"'!d' /etc/xvps/vhost.log | awk -F' ' '$0=$1')
+						    if [ "${arrayDomain_[$key]}" != "" ]; then
+						        echo -e "\e[30;48;5;82m xVPS \e[0m Deleting vHost ${arrayDomain_[$key]} ..."
+						        sleep 2s
+						        deleteVhost ${arrayDomain_[$key]}
+						    else
+					        	echo -e "\e[40;38;5;82m INFO \e[0m No VirtualHost selected, aborting ... "
+					        fi
+					    done
+					    sudo service apache2 restart
+						sudo service nginx reload
+					    #Delete vhost in log file
+					    IFS=',' read -r -a array <<< "$delNumber"
+					    for key in "${array[@]}"
+					    do
+					    	if [ "${arrayDomain_[$key]}" != "" ]; then
+					        	sed -i "/${arrayDomain_[$key]}/d" /etc/xvps/vhost.log
+					        fi
+					    done
+					else
+					    echo -e "\e[40;38;5;82m INFO \e[0m Aborting ... "
+					fi
+				else
+				    echo "VirtualHost Not found!"
+				    echo "------------------------------------------------------------------"
+				fi
 			else
-			    echo -e -n "\e[40;38;5;82m INFO \e[0m Aborted ... "
+			    echo "VirtualHost Not found!"
+			    echo "------------------------------------------------------------------"
 			fi
-			sudo service apache2 restart
-			sudo service nginx reload
+			;;
+		8 )	headerScreen
+			echo -e "\e[40;38;5;82m TASK \e[0m Delete Database"
+			echo "------------------------------------------------------------------"
+			if [ -f /etc/xvps/database.log ]; then	
+				checkFile=$(cat /etc/xvps/database.log)
+				if [ "$checkFile" != "" ]; then
+					awk -F' ' '$0=$1' /etc/xvps/database.log | nl -b a -s '. '
+					echo "------------------------------------------------------------------"
+					echo "For bulk delete, seperated number with comma (ex: 1,2,3..)"
+					echo "------------------------------------------------------------------"
+					echo -e -n "\e[40;38;5;82m INPUT \e[0m Number of database you want to delete : "
+					read delNumber
+					read -p "Make sure the number is correct, continue ? [y]es or [n]o : " ans
+					if [ $ans == 'y' ]; then
+					    IFS=',' read -r -a array <<< "$delNumber"
+					    for key in "${array[@]}"
+					    do
+					        arrayDatabase_[$key]=$(sed "$key"'!d' /etc/xvps/database.log | awk -F' ' '$0=$1')
+						    if [ "${arrayDatabase_[$key]}" != "" ]; then
+						        echo -e "\e[30;48;5;82m xVPS \e[0m Deleting Database ${arrayDatabase_[$key]} ..."
+						        sleep 2s
+						        deleteDatabase ${arrayDatabase_[$key]}
+						    else
+					        	echo -e "\e[40;38;5;82m INFO \e[0m No Database selected, aborting ... "
+					        fi
+					    done
+					    #Delete vhost in log file
+					    IFS=',' read -r -a array <<< "$delNumber"
+					    for key in "${array[@]}"
+					    do
+					    	if [ "${arrayDatabase_[$key]}" != "" ]; then
+					        	sed -i "/${arrayDatabase_[$key]}/d" /etc/xvps/database.log
+					    	fi
+					    done
+					else
+					    echo -e "\e[40;38;5;82m INFO \e[0m Aborting ... "
+					fi
+				else
+				    echo "Database Not found!"
+				    echo "------------------------------------------------------------------"
+				fi
+			else
+			    echo "Database Not found!"
+			    echo "------------------------------------------------------------------"
+			fi
+			;;
+		q ) break
 			;;
 		*)
         echo -e "\e[40;38;5;82m INFO \e[0m Wrong choice!"
