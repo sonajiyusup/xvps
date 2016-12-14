@@ -1,7 +1,7 @@
 #!/bin/bash
 # ============== INFO SCRIPT =============
 version="1.0.0"
-changelog="Fixing some bug"
+changelog="Initial Release"
 urlscript="https://raw.githubusercontent.com/sonajiyusup/xvps/master/xvps"
 ver=$(wget -qO- --no-check-certificate $urlscript | sed '3!d' | awk -F'"' '$0=$2')
 vlog=$(wget -qO- --no-check-certificate $urlscript | sed '4!d' | awk -F'"' '$0=$2')
@@ -255,13 +255,15 @@ while(true)
 			if [ $? -eq 0 ]; then
 				wget -P $WEBDIR https://github.com/sonajiyusup/ajax-file-upload/archive/master.zip
 				unzip $WEBDIR/master.zip -d $WEBDIR
-				mv $WEBDIR/ajax-file-upload-master/* $WEBDIR
-				rm -rf $WEBDIR/ajax-file-upload-master/ $WEBDIR/master.zip
-				echo "rm -rf .git/ README.md assets/ index.html upload.php clean" > $WEBDIR/clean
+				mv $WEBDIR/ajax-file-upload-master $WEBDIR/upload
+				rm -rf $WEBDIR/master.zip
+				echo '<!DOCTYPE html><html><head><meta charset="utf-8"/><title>Welcome</title><style type="text/css">body{background-color:#ebebec; background-image:-webkit-radial-gradient(center, #ebebec, #b4b4b4); background-image:-moz-radial-gradient(center, #ebebec, #b4b4b4); background-image:radial-gradient(center, #ebebec, #b4b4b4); min-height:600px;}a, a:visited{outline:none; color:#389dc1; text-decoration:none;}#section a{background-color:#007a96; padding:12px 26px; color:#fff; font-size:14px; border-radius:2px; cursor:pointer; display:inline-block; margin-top:12px; line-height:1;}</style></head><body><div align="center"><h1>Virtual Hosts Created Successfully!</h1><p><b>xVPS</b> has successfully created a virtual host in your server.<br>We can code it better! Join at <a href=[quotes-one]https://github.com/sonajiyusup/xvps[quotes-one] target=[quotes-one]_blank[quotes-one]>GitHub</a><br>Created by <a href=[quotes-one]https://facebook.com/sonaji.hnc[quotes-one] target=[quotes-one]_blank[quotes-one]>Sonaji</a></p><br><br></div><div align="center" id="section"><a href="/upload">Upload</a><a id="show_id" onclick="document.getElementById([quotes-one]spoiler_id[quotes-one]).style.display=[quotes-one][quotes-one]; document.getElementById([quotes-one]show_id[quotes-one]).style.display=[quotes-one]none[quotes-one];">Show PHP info</a><span id="spoiler_id" style="display: none;"><a class="link" onclick="document.getElementById([quotes-one]spoiler_id[quotes-one]).style.display=[quotes-one]none[quotes-one]; document.getElementById([quotes-one]show_id[quotes-one]).style.display=[quotes-one][quotes-one];">Hide PHP Info</a><br/><?php phpinfo(); ?></span></div></body></html>' > $WEBDIR/welcome.php
+				sed -i "s/\[quotes-one\]/'/g" $WEBDIR/welcome.php
+				echo "rm -rf upload/ welcome.php clean" > $WEBDIR/clean
 				chmod +x $WEBDIR/clean
 				echo $DOMAIN >> /etc/xvps/vhost.log
 				echo "------------------------------------------------------------------"
-				echo -e "\e[40;38;5;82m Info \e[0m Operation success, check : http://$DOMAIN"
+				echo -e "\e[40;38;5;82m Info \e[0m Operation success, check : http://$DOMAIN/welcome.php"
 			else
 				echo -e "\e[40;38;5;82m Info \e[0m New Virtual Hosts was not created due to conflict, Please choose a different name and try again"
 			fi
