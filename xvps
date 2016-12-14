@@ -40,7 +40,7 @@ createVhost(){
 		if [ -d $WEBDIR ]; then
 			echo -e "\e[40;38;5;82m Success \e[0m created directory in $WEBDIR"
 		fi
-		echo -e '#'"$PRENAME$DOMAIN"'\nserver {\n\tlisten 80;\n\tserver_name '"$DOMAIN"';\n\troot /var/www/'"$DOMAIN"';\n\tindex index.php index.htm index.html;\n\n\tlocation / {\n\t try_files $uri $uri/ /index.php;\n\t}\n\n\tlocation ~ \.php$ {\n\t\tproxy_pass http://'"$IPADDRESS"':8080$request_uri;\n\t\tproxy_set_header Host $host;\n\t\tproxy_set_header X-Real-IP $remote_addr;\n\t\tproxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;\n\t\tproxy_set_header X-Forwarded-Proto $scheme;\n\t}\n\n\tlocation ~ /\. {\n\t deny all;\n\t}\n}\n\n' >> /etc/nginx/sites-available/apache
+		echo -e '#'"$PRENAME$DOMAIN"'\nserver {\n\tlisten 80;\n\tserver_name '"$DOMAIN"';\n\troot /var/www/'"$DOMAIN"';\n\tindex index.php index.htm index.html;\n\n\tlocation / {\n\t try_files $uri $uri/ /index.php;\n\t}\n\n\tlocation ~ \.php$ {\n\t\tproxy_pass http://'"$IPADDRESS"':8080$request_uri;\n\t\tproxy_set_header Host $host;\n\t\tproxy_set_header X-Real-IP $remote_addr;\n\t\tproxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;\n\t\tproxy_set_header X-Forwarded-Proto $scheme;\n\t}\n\n\tlocation ~ /\. {\n\t deny all;\n\t}\n\n\tlocation ~* .(woff|eot|ttf|svg|mp4|webm|jpg|jpeg|png|gif|ico|css|js)$ {\n\t\texpires 365d;\n\t}\n}\n\n' >> /etc/nginx/sites-available/apache
 		sudo ln -s /etc/nginx/sites-available/apache /etc/nginx/sites-enabled/apache
 		sudo service nginx reload
 		echo -e '<VirtualHost *:8080>\n\tServerName '"$DOMAIN"'\n\tServerAlias '"$DOMAIN"'\n\tDocumentRoot /var/www/'"$DOMAIN"'\n\t<Directory "/var/www/'"$DOMAIN"'">\n\t\tAllowOverride All\n\t</Directory>\n</VirtualHost>\n' > /etc/apache2/sites-available/$DOMAIN.conf
@@ -169,7 +169,32 @@ while(true)
 			sleep 3s
 			sudo apt-get install nginx -y
 			sudo rm /etc/nginx/sites-enabled/default
+			#nginx.conf setting
+			sudo cp /etc/nginx/nginx.conf /etc/nginx/nginx.conf.bak
+			sudo sed -i '11i\        open_file_cache max=1000 inactive=20s;' /etc/nginx/nginx.conf
+			sudo sed -i '11i\        open_file_cache_valid 30s;' /etc/nginx/nginx.conf
+			sudo sed -i '11i\        open_file_cache_min_uses 5;' /etc/nginx/nginx.conf
+			sudo sed -i '11i\        open_file_cache_errors off;' /etc/nginx/nginx.conf
+			sudo sed -i '11i\        ' /etc/nginx/nginx.conf
 			sudo sed -i '11i\        client_max_body_size 100M;' /etc/nginx/nginx.conf
+			sudo sed -i '11i\        client_body_buffer_size 128k;' /etc/nginx/nginx.conf
+			sudo sed -i '11i\        client_header_buffer_size 1k;' /etc/nginx/nginx.conf
+			sudo sed -i '11i\        large_client_header_buffers 4 4k;' /etc/nginx/nginx.conf
+			sudo sed -i '11i\        output_buffers 1 32k;' /etc/nginx/nginx.conf
+			sudo sed -i '11i\        postpone_output 1460;' /etc/nginx/nginx.conf
+			cpu=$(grep processor /proc/cpuinfo | wc -l)
+			cpuLine=$(grep -n "worker_processes" /etc/nginx/nginx.conf | awk -F':' '$0=$2')
+			sudo sed -i "s/$cpuLine/worker_processes $cpu;/g" /etc/nginx/nginx.conf
+			connect=$(ulimit -n)
+			connectLine=$(grep -n "worker_connections" /etc/nginx/nginx.conf | awk -F':' '$0=$2')
+			sudo sed -i "s/$connectLine/        worker_connections $connect;/g" /etc/nginx/nginx.conf
+			sudo sed -i "s/# multi_accept on;/multi_accept on;/g" /etc/nginx/nginx.conf
+			sudo sed -i '8i\        use epoll;' /etc/nginx/nginx.conf
+			gzipLine=$(grep -n "gzip on;" /etc/nginx/nginx.conf | awk -F':' '$0=$1')
+			addLine=$(expr $gzipLine + 1) && sudo sed -i "$addLine"'i\        gzip_min_length 1000;' /etc/nginx/nginx.conf
+			addLine=$(expr $gzipLine + 2) && sudo sed -i "$addLine"'i\        gzip_types text/html application/x-javascript text/css application/javascript text/javascript text/plain text/xml application/json application/vnd.ms-fontobject application/x-font-opentype application/x-font-truetype application/x-font-ttf application/xml font/eot font/opentype font/otf image/svg+xml image/vnd.microsoft.icon;' /etc/nginx/nginx.conf
+			gzipLine=$(grep -n "gzip_disable" /etc/nginx/nginx.conf | awk -F':' '$0=$2')
+			sudo sed -i 's/'"$gzipLine"'/        gzip_disable "MSIE [1-6]\\.";/g' /etc/nginx/nginx.conf
 			sudo service nginx restart
 			#change upload max size to 100M
 			sudo sed -i 's/upload_max_filesize = 2M/upload_max_filesize = 100M/g' /etc/php5/fpm/php.ini
