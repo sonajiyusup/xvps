@@ -15,7 +15,7 @@ checkUpdate(){
 	echo -e "\e[7;49;96mChange Comment : $vlog \e[0m"
 	echo -n -e "Do you want to update Script to \e[30;48;5;82m xVPS v.$ver \e[0m ? [y or n] : "
 	read update
-	if [ $update == 'y' ]; then
+	if [ "$update" == 'y' ]; then
 		[ -f /usr/local/bin/xvps ] && rm -rf /usr/local/bin/xvps
 		wget --no-check-certificate -O /usr/local/bin/xvps $urlscript && chmod +x /usr/local/bin/xvps
 		echo -e "\e[30;48;5;82m Info \e[0m Update Success, re-run xVPS ..."
@@ -55,7 +55,7 @@ createVhost(){
 deleteVhost(){
 	DOMAIN=$1
 	firstLine=$(grep -n "#$PRENAME$DOMAIN" /etc/nginx/sites-available/apache | awk -F':' '$0=$1')
-	endLine=$(expr $firstLine + 24)
+	endLine=$(expr $firstLine + 28)
 	sudo sed -i "$firstLine","$endLine"d /etc/nginx/sites-available/apache
 	sudo a2dissite $DOMAIN
 	sudo rm /etc/apache2/sites-available/$DOMAIN.conf
@@ -106,7 +106,7 @@ createDatabase(){
 exitPrompt(){
     echo -e -n "\e[40;38;5;82m INFO \e[0m Do you wish to continue? [y]es or [n]o : "
     read ans
-    if [ $ans == 'n' ]; then
+    if [ "$ans" == 'n' ]; then
 		echo -e "\e[40;38;5;82m-------------------------------^/|\^------------------------------\e[0m"
         echo -e "------------- \e[40;38;5;82m Exiting the script. Have a nice day!\e[0m -------------"
 		echo -e "\e[40;38;5;82m--------------------------------\_/-------------------------------\e[0m"
@@ -145,7 +145,7 @@ while(true)
 			sudo echo -e "deb http://mirrors.digitalocean.com/ubuntu trusty-updates multiverse\ndeb http://mirrors.digitalocean.com/ubuntu trusty multiverse" >> /etc/apt/sources.list
 			sudo apt-get update && apt-get upgrade -y
 			tapache2=$(which apache2)
-			if [ $tapache2 != "" ]
+			if [ -n "$tapache2" ]
 				then
 					echo -e "\e[40;38;5;82m TASK \e[0m Apache2 found, removing ..."
 					sleep 3s
@@ -192,7 +192,7 @@ while(true)
 			sudo sed -i '8i\        use epoll;' /etc/nginx/nginx.conf
 			gzipLine=$(grep -n "gzip on;" /etc/nginx/nginx.conf | awk -F':' '$0=$1')
 			addLine=$(expr $gzipLine + 1) && sudo sed -i "$addLine"'i\        gzip_min_length 1000;' /etc/nginx/nginx.conf
-			addLine=$(expr $gzipLine + 2) && sudo sed -i "$addLine"'i\        gzip_types text/html application/x-javascript text/css application/javascript text/javascript text/plain text/xml application/json application/vnd.ms-fontobject application/x-font-opentype application/x-font-truetype application/x-font-ttf application/xml font/eot font/opentype font/otf image/svg+xml image/vnd.microsoft.icon;' /etc/nginx/nginx.conf
+			addLine=$(expr $gzipLine + 2) && sudo sed -i "$addLine"'i\        gzip_types application/x-javascript text/css application/javascript text/javascript text/plain text/xml application/json application/vnd.ms-fontobject application/x-font-opentype application/x-font-truetype application/x-font-ttf application/xml font/eot font/opentype font/otf image/svg+xml image/vnd.microsoft.icon;' /etc/nginx/nginx.conf
 			gzipLine=$(grep -n "gzip_disable" /etc/nginx/nginx.conf | awk -F':' '$0=$2')
 			sudo sed -i 's/'"$gzipLine"'/        gzip_disable "MSIE [1-6]\\.";/g' /etc/nginx/nginx.conf
 			sudo service nginx restart
@@ -317,7 +317,7 @@ while(true)
 			echo "------------------------------------------------------------------"
 			if [ -f /etc/xvps/wpinstall.log ]; then
 				checkFile=$(cat /etc/xvps/wpinstall.log)
-				if [ "$checkFile" != "" ]; then
+				if [ -n "$checkFile" ]; then
 				    awk -F':' '$0=$1' /etc/xvps/wpinstall.log | nl -b a -s '. '
 				else
 					echo "VirtualHost with Wordpress Installation not found!"
@@ -330,7 +330,7 @@ while(true)
 			echo "------------------------------------------------------------------"
 			if [ -f /etc/xvps/vhost.log ]; then
 				checkFile=$(cat /etc/xvps/vhost.log)
-				if [ "$checkFile" != "" ]; then
+				if [ -n "$checkFile" ]; then
 					awk -F' ' '$0=$1' /etc/xvps/vhost.log | nl -b a -s '. '
 					echo "------------------------------------------------------------------"
 				else
@@ -347,7 +347,7 @@ while(true)
 			echo "------------------------------------------------------------------"
 			if [ -f /etc/xvps/wpinstall.log ]; then	
 				checkFile=$(cat /etc/xvps/wpinstall.log)
-				if [ "$checkFile" != "" ]; then
+				if [ -n "$checkFile" ]; then
 				    awk -F':' '$0=$1' /etc/xvps/wpinstall.log | nl -b a -s '. '
 					echo "------------------------------------------------------------------"
 					echo "For bulk delete, seperated number with comma (ex: 1,2,3..)"
@@ -355,12 +355,12 @@ while(true)
 					echo -e -n "\e[40;38;5;82m INPUT \e[0m Number of domain you want to delete : "
 					read delNumber
 					read -p "Make sure the number is correct, continue ? [y]es or [n]o : " ans
-					if [ $ans == 'y' ]; then
+					if [ "$ans" == 'y' ]; then
 					    IFS=',' read -r -a array <<< "$delNumber"
 					    for key in "${array[@]}"
 					    do
 					        arrayDomain_[$key]=$(sed "$key"'!d' /etc/xvps/wpinstall.log | awk -F':' '$0=$1')
-					        if [ "${arrayDomain_[$key]}" != "" ]; then
+					        if [ -n "${arrayDomain_[$key]}" ]; then
 					        	echo -e "\e[30;48;5;82m xVPS \e[0m Deleting vHost ${arrayDomain_[$key]} ..."
 						        sleep 2s
 						        deleteVhost ${arrayDomain_[$key]}
@@ -368,7 +368,7 @@ while(true)
 					        	echo -e "\e[40;38;5;82m INFO \e[0m No VirtualHost selected, aborting ... "
 					        fi
 					        arrayDatabase_[$key]=$(sed "$key"'!d' /etc/xvps/wpinstall.log | awk -F':' '$0=$2')
-						    if [ "${arrayDatabase_[$key]}" != "" ]; then    
+						    if [ -n "${arrayDatabase_[$key]}" ]; then    
 						        echo -e "\e[30;48;5;82m xVPS \e[0m Deleting Database ${arrayDatabase_[$key]} ..."
 						        sleep 2s
 						        deleteDatabase ${arrayDatabase_[$key]}
@@ -382,7 +382,7 @@ while(true)
 					    IFS=',' read -r -a array <<< "$delNumber"
 					    for key in "${array[@]}"
 					    do
-					    	if [ "${arrayDomain_[$key]}" != "" ]; then
+					    	if [ -n "${arrayDomain_[$key]}" ]; then
 					        	sed -i "/${arrayDomain_[$key]}/d" /etc/xvps/wpinstall.log
 					        fi
 					    done
@@ -403,7 +403,7 @@ while(true)
 			echo "------------------------------------------------------------------"
 			if [ -f /etc/xvps/vhost.log ]; then
 				checkFile=$(cat /etc/xvps/vhost.log)
-				if [ "$checkFile" != "" ]; then
+				if [ -n "$checkFile" ]; then
 					awk -F' ' '$0=$1' /etc/xvps/vhost.log | nl -b a -s '. '
 					echo "------------------------------------------------------------------"
 					echo "For bulk delete, seperated number with comma (ex: 1,2,3..)"
@@ -411,12 +411,12 @@ while(true)
 					echo -e -n "\e[40;38;5;82m INPUT \e[0m Number of domain you want to delete : "
 					read delNumber
 					read -p "Make sure the number is correct, continue ? [y]es or [n]o : " ans
-					if [ $ans == 'y' ]; then
+					if [ "$ans" == 'y' ]; then
 					    IFS=',' read -r -a array <<< "$delNumber"
 					    for key in "${array[@]}"
 					    do
 					        arrayDomain_[$key]=$(sed "$key"'!d' /etc/xvps/vhost.log | awk -F' ' '$0=$1')
-						    if [ "${arrayDomain_[$key]}" != "" ]; then
+						    if [ -n "${arrayDomain_[$key]}" ]; then
 						        echo -e "\e[30;48;5;82m xVPS \e[0m Deleting vHost ${arrayDomain_[$key]} ..."
 						        sleep 2s
 						        deleteVhost ${arrayDomain_[$key]}
@@ -430,7 +430,7 @@ while(true)
 					    IFS=',' read -r -a array <<< "$delNumber"
 					    for key in "${array[@]}"
 					    do
-					    	if [ "${arrayDomain_[$key]}" != "" ]; then
+					    	if [ -n "${arrayDomain_[$key]}" ]; then
 					        	sed -i "/${arrayDomain_[$key]}/d" /etc/xvps/vhost.log
 					        fi
 					    done
@@ -451,7 +451,7 @@ while(true)
 			echo "------------------------------------------------------------------"
 			if [ -f /etc/xvps/database.log ]; then	
 				checkFile=$(cat /etc/xvps/database.log)
-				if [ "$checkFile" != "" ]; then
+				if [ -n "$checkFile" ]; then
 					awk -F' ' '$0=$1' /etc/xvps/database.log | nl -b a -s '. '
 					echo "------------------------------------------------------------------"
 					echo "For bulk delete, seperated number with comma (ex: 1,2,3..)"
@@ -459,12 +459,12 @@ while(true)
 					echo -e -n "\e[40;38;5;82m INPUT \e[0m Number of database you want to delete : "
 					read delNumber
 					read -p "Make sure the number is correct, continue ? [y]es or [n]o : " ans
-					if [ $ans == 'y' ]; then
+					if [ "$ans" == 'y' ]; then
 					    IFS=',' read -r -a array <<< "$delNumber"
 					    for key in "${array[@]}"
 					    do
 					        arrayDatabase_[$key]=$(sed "$key"'!d' /etc/xvps/database.log | awk -F' ' '$0=$1')
-						    if [ "${arrayDatabase_[$key]}" != "" ]; then
+						    if [ -n "${arrayDatabase_[$key]}" ]; then
 						        echo -e "\e[30;48;5;82m xVPS \e[0m Deleting Database ${arrayDatabase_[$key]} ..."
 						        sleep 2s
 						        deleteDatabase ${arrayDatabase_[$key]}
@@ -476,7 +476,7 @@ while(true)
 					    IFS=',' read -r -a array <<< "$delNumber"
 					    for key in "${array[@]}"
 					    do
-					    	if [ "${arrayDatabase_[$key]}" != "" ]; then
+					    	if [ -n "${arrayDatabase_[$key]}" ]; then
 					        	sed -i "/${arrayDatabase_[$key]}/d" /etc/xvps/database.log
 					    	fi
 					    done

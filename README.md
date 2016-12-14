@@ -69,7 +69,6 @@ sudo -u www-data -s -- <<-EOF
     wp --path=$WEBDIR widget delete recent-comments-2 archives-2 categories-2 meta-2
     wp --path=$WEBDIR db query "UPDATE wp_options SET option_value = '$WPDESCRIPTION' WHERE wp_options.option_name = 'blogdescription';"
 EOF
-EOF
 ```
 
 ### Screenshot
