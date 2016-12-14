@@ -39,7 +39,7 @@ user=root
 password=your-mysql-root-password
 ```
 ##### Wordpress
-If you want to using default user account in every new wordpress installation, create file /etc/xvps/wp-config
+If you want to using default user account in every new wordpress installation, create file /etc/xvps/wp-auth.cnf
 ```sh
 #Default Wordpress user account
 WPUSER=user-to-login

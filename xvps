@@ -237,11 +237,11 @@ while(true)
 				#set database name and database username
 				MAINDB=$PRENAME$(openssl rand -hex 2)$RE_DOMAIN
 				createDatabase
-				if [ -f /etc/xvps/wp-config ]; then
+				if [ -f /etc/xvps/wp-auth.cnf ]; then
 					echo -e "\e[40;38;5;82m Info \e[0m Default WP config found"
-					eval $(grep "^WPUSER=" /etc/xvps/wp-config)
-					eval $(grep "^WPEMAIL=" /etc/xvps/wp-config)
-					eval $(grep "^WPPASSWD=" /etc/xvps/wp-config)
+					eval $(grep "^WPUSER=" /etc/xvps/wp-auth.cnf)
+					eval $(grep "^WPEMAIL=" /etc/xvps/wp-auth.cnf)
+					eval $(grep "^WPPASSWD=" /etc/xvps/wp-auth.cnf)
 					read -p "Wordpress - Title : " WPTITLE
 					sleep 3s
 				else
